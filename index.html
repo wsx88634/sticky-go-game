@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>黏黏圍棋</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入 PeerJS 用於 P2P 連線 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 標題列 -->
+        <header>
+            <h1>黏黏圍棋 🍡</h1>
+            <div id="status-bar">
+                <span id="connection-status">🔴 尚未連線</span>
+                <span id="turn-indicator">等待開始...</span>
+            </div>
+        </header>
+
+        <!-- 連線面板 -->
+        <div id="network-panel" class="panel">
+            <h2>雙人連線區</h2>
+            <div class="network-controls">
+                <div class="host-section">
+                    <p>你的邀請碼：<strong id="my-peer-id">產生中...</strong></p>
+                    <button id="copy-btn">複製邀請碼</button>
+                    <p class="hint">把邀請碼給朋友，讓朋友加入！</p>
+                </div>
+                <div class="divider">或</div>
+                <div class="join-section">
+                    <input type="text" id="friend-id-input" placeholder="貼上朋友的邀請碼">
+                    <button id="join-btn">加入遊戲</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="game-panel" class="panel hidden">
+            <div class="player-info">
+                <div id="player-black" class="player-box">
+                    <div class="stone black"></div>
+                    <span>黑方 (建房者)</span>
+                    <div class="score">提子: <span id="black-score">0</span></div>
+                </div>
+                <div id="player-white" class="player-box">
+                    <div class="stone white"></div>
+                    <span>白方 (加入者)</span>
+                    <div class="score">提子: <span id="white-score">0</span></div>
+                </div>
+            </div>
+
+            <div class="board-container">
+                <canvas id="go-board" width="400" height="400"></canvas>
+            </div>
+            
+            <div class="controls">
+                <button id="pass-btn">Pass (停一手)</button>
+                <button id="resign-btn" class="danger">認輸</button>
+            </div>
+        </div>
+        
+        <!-- 結算/提示彈窗 -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="modal-title">提示</h2>
+                <p id="modal-message"></p>
+                <button id="modal-close-btn">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="network.js"></script>
+</body>
+</html>
