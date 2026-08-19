@@ -85,10 +85,17 @@ h2 {
     letter-spacing: 2px;
 }
 
+#ai-difficulty-panel:not(.hidden) {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .divider {
     text-align: center;
     color: #999;
     position: relative;
+    margin: 15px 0;
 }
 .divider::before, .divider::after {
     content: "";

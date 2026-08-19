@@ -10,6 +10,8 @@ class NetworkGame {
         this.joinBtn = document.getElementById('join-btn');
         this.copyBtn = document.getElementById('copy-btn');
         this.localBtn = document.getElementById('local-btn');
+        this.aiBtn = document.getElementById('ai-btn');
+        this.aiDiffPanel = document.getElementById('ai-difficulty-panel');
         this.statusDisplay = document.getElementById('connection-status');
         this.turnIndicator = document.getElementById('turn-indicator');
         
@@ -17,6 +19,8 @@ class NetworkGame {
         this.gamePanel = document.getElementById('game-panel');
         
         this.isLocalMode = false;
+        this.isAIMode = false;
+        this.aiEngine = null;
         
         this.passBtn = document.getElementById('pass-btn');
         this.resignBtn = document.getElementById('resign-btn');
@@ -26,12 +30,30 @@ class NetworkGame {
         
         // 綁定到 window.game
         window.game.onMovePlaced = this.sendMove.bind(this);
+        
+        // 檢查網址是否有 join 參數
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinId = urlParams.get('join');
+        if (joinId) {
+            this.friendIdInput.value = joinId;
+            setTimeout(() => this.joinBtn.click(), 500);
+        }
     }
     
     setupPeerEvents() {
         this.peer.on('open', (id) => {
             this.myIdDisplay.textContent = id;
             console.log('My peer ID is: ' + id);
+            
+            // 產生含有 peerId 的分享網址
+            const joinUrl = window.location.href.split('?')[0] + '?join=' + id;
+            
+            // 繪製 QR Code
+            new QRious({
+                element: document.getElementById('qr-code'),
+                value: joinUrl,
+                size: 150
+            });
         });
         
         // 房主被動等待連線
@@ -90,16 +112,40 @@ class NetworkGame {
             this.statusDisplay.textContent = '🏠 單機雙人模式';
             this.statusDisplay.style.color = '#3498db';
             
-            // 切換畫面
             this.networkPanel.classList.add('hidden');
             this.gamePanel.classList.remove('hidden');
             
-            // 由於是單機，把文字提示改一下
             document.querySelector('#player-black span').textContent = '黑方';
             document.querySelector('#player-white span').textContent = '白方';
             
             window.game.resizeCanvas();
             this.updateTurnUI();
+        });
+
+        this.aiBtn.addEventListener('click', () => {
+            this.aiDiffPanel.classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('.ai-diff-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const diff = e.target.dataset.level;
+                this.isAIMode = true;
+                this.aiEngine = new StickyGoAI(diff);
+                this.myColor = BLACK; // 玩家為黑
+                
+                let diffText = diff === 'easy' ? '簡單' : diff === 'medium' ? '中等' : '困難';
+                this.statusDisplay.textContent = `🤖 AI 對戰 (${diffText})`;
+                this.statusDisplay.style.color = '#8e44ad';
+                
+                this.networkPanel.classList.add('hidden');
+                this.gamePanel.classList.remove('hidden');
+                
+                document.querySelector('#player-black span').textContent = '黑方 (你)';
+                document.querySelector('#player-white span').textContent = '白方 (電腦)';
+                
+                window.game.resizeCanvas();
+                this.updateTurnUI();
+            });
         });
     }
     
@@ -153,6 +199,10 @@ class NetworkGame {
         if (this.conn && this.conn.open) {
             this.conn.send({ type: 'move', row, col });
         }
+        
+        if (this.isAIMode && window.game.currentPlayer === WHITE) {
+            this.aiEngine.makeMove(window.game);
+        }
     }
     
     sendResign() {
@@ -172,6 +222,16 @@ class NetworkGame {
             this.turnIndicator.textContent = `🎲 輪到 ${colorName}`;
             this.turnIndicator.style.color = '#3498db';
             this.turnIndicator.style.fontWeight = 'bold';
+        } else if (this.isAIMode) {
+            if (this.isMyTurn()) {
+                this.turnIndicator.textContent = '🟢 換你落子';
+                this.turnIndicator.style.color = '#2ecc71';
+                this.turnIndicator.style.fontWeight = 'bold';
+            } else {
+                this.turnIndicator.textContent = '⏳ 電腦思考中...';
+                this.turnIndicator.style.color = '#e67e22';
+                this.turnIndicator.style.fontWeight = 'normal';
+            }
         } else if (this.isMyTurn()) {
             this.turnIndicator.textContent = '🟢 換你落子';
             this.turnIndicator.style.color = '#2ecc71';

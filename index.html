@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- 引入 PeerJS 用於 P2P 連線 -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- 引入 QRious 產生 QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -21,22 +23,34 @@
 
         <!-- 連線面板 -->
         <div id="network-panel" class="panel">
-            <h2>雙人連線區</h2>
+            <h2>選擇遊戲模式</h2>
             <div class="network-controls">
-                <div class="host-section">
-                    <p>你的邀請碼：<strong id="my-peer-id">產生中...</strong></p>
-                    <button id="copy-btn">複製邀請碼</button>
-                    <p class="hint">把邀請碼給朋友，讓朋友加入！</p>
+                
+                <!-- 單人/單機區 -->
+                <div class="local-section">
+                    <button id="ai-btn" style="background-color: #8e44ad; margin-bottom: 10px;">單人對戰 (打電腦)</button>
+                    <div id="ai-difficulty-panel" class="hidden" style="margin-bottom: 15px;">
+                        <button class="ai-diff-btn" data-level="easy" style="background-color: #2ecc71; width: 30%; font-size: 0.9rem;">簡單</button>
+                        <button class="ai-diff-btn" data-level="medium" style="background-color: #f1c40f; color:#333; width: 30%; font-size: 0.9rem;">中等</button>
+                        <button class="ai-diff-btn" data-level="hard" style="background-color: #e74c3c; width: 30%; font-size: 0.9rem;">困難</button>
+                    </div>
+                    <button id="local-btn" style="background-color: #2c3e50;">單機雙人 (同一台輪流)</button>
                 </div>
-                <div class="divider">或</div>
+
+                <div class="divider">網際網路連線對戰</div>
+
+                <div class="host-section">
+                    <p>分享給朋友連線：</p>
+                    <canvas id="qr-code" style="margin: 10px auto; display: block;"></canvas>
+                    <p>邀請碼：<strong id="my-peer-id">產生中...</strong></p>
+                    <button id="copy-btn">複製邀請碼</button>
+                </div>
+
                 <div class="join-section">
-                    <input type="text" id="friend-id-input" placeholder="貼上朋友的邀請碼">
+                    <input type="text" id="friend-id-input" placeholder="貼上邀請碼">
                     <button id="join-btn">加入遊戲</button>
                 </div>
-                <div class="divider">或</div>
-                <div class="local-section">
-                    <button id="local-btn" style="background-color: #2c3e50;">單機雙人對戰 (同一台裝置輪流下)</button>
-                </div>
+
             </div>
         </div>
 
@@ -76,6 +90,7 @@
     </div>
 
     <script src="game.js"></script>
+    <script src="ai.js"></script>
     <script src="network.js"></script>
 </body>
 </html>
