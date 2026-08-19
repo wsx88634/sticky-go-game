@@ -263,9 +263,10 @@ class NetworkGame {
     }
     
     handleGameOver(winnerColor, byResign = false) {
-        window.game.gameOver = true;
-        const colorName = winnerColor === BLACK ? '黑子' : '白子';
-        let msg = byResign ? `${colorName}獲勝 (對方認輸)` : `恭喜 ${colorName} 獲勝！ 🎉`;
+        if (byResign) {
+            const reason = "對方認輸";
+            window.game.forceGameOver(winnerColor, reason);
+        }
         
         // 觸發彩帶
         if (typeof confetti === 'function') {
@@ -275,8 +276,6 @@ class NetworkGame {
                 origin: { y: 0.6 }
             });
         }
-        
-        this.showModal('遊戲結束', msg);
         
         // 顯示回主選單按鈕，隱藏認輸按鈕
         this.resignBtn.style.display = 'none';

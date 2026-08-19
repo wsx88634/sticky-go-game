@@ -1,4 +1,4 @@
-const BOARD_SIZE = 15;
+const BOARD_SIZE = 19;
 const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
@@ -8,13 +8,12 @@ class StickyGo {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         
-        // 回調函數 (供 network.js 綁定)
+        // 回調函數
         this.onMovePlaced = null; 
         this.onGameOver = null;
 
         this.reset();
         
-        // 綁定事件 (只綁一次)
         this.canvas.addEventListener('click', this.handleClick.bind(this));
         window.addEventListener('resize', this.resizeCanvas.bind(this));
     }
@@ -23,8 +22,17 @@ class StickyGo {
         this.board = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(EMPTY));
         this.currentPlayer = BLACK;
         this.gameOver = false;
+        this.winnerColor = null;
         this.lastMove = null;
         this.resizeCanvas();
+        this.updateUI();
+    }
+
+    forceGameOver(winnerColor, reason = "") {
+        this.gameOver = true;
+        this.winnerColor = winnerColor;
+        this.gameOverReason = reason;
+        this.draw();
         this.updateUI();
     }
 
@@ -69,6 +77,7 @@ class StickyGo {
 
         if (isWin) {
             this.gameOver = true;
+            this.winnerColor = color;
         } else {
             // 更新狀態
             this.currentPlayer = color === BLACK ? WHITE : BLACK;
@@ -125,8 +134,25 @@ class StickyGo {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawGrid();
-        this.drawStickyStones();
+        this.drawStones();
         this.drawLastMove();
+
+        if (this.gameOver && this.winnerColor) {
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.ctx.fillStyle = "white";
+            this.ctx.font = "bold 32px sans-serif";
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+            const colorName = this.winnerColor === BLACK ? "黑子" : "白子";
+            const extra = this.gameOverReason ? `\n(${this.gameOverReason})` : "";
+            this.ctx.fillText(`${colorName}獲勝！`, this.canvas.width / 2, this.canvas.height / 2 - 15);
+            if (this.gameOverReason) {
+                this.ctx.font = "bold 18px sans-serif";
+                this.ctx.fillText(this.gameOverReason, this.canvas.width / 2, this.canvas.height / 2 + 25);
+            }
+        }
     }
 
     drawGrid() {
@@ -145,9 +171,11 @@ class StickyGo {
         }
         this.ctx.stroke();
 
-        // 畫星位 (15x15 的標準星位與天元)
+        // 畫星位 (19x19 的標準星位與天元)
         const stars = [
-            [3, 3], [11, 3], [3, 11], [11, 11], [7, 7]
+            [3, 3], [9, 3], [15, 3],
+            [3, 9], [9, 9], [15, 9],
+            [3, 15], [9, 15], [15, 15]
         ];
         this.ctx.fillStyle = "#5d4a3f";
         stars.forEach(star => {
@@ -157,32 +185,9 @@ class StickyGo {
         });
     }
 
-    drawStickyStones() {
+    drawStones() {
         const radius = this.cellSize * 0.45;
         
-        // 第一層：畫黏合的橋樑
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                if (this.board[r][c] === EMPTY) continue;
-                
-                const color = this.board[r][c] === BLACK ? "#333" : "#fff";
-                this.ctx.fillStyle = color;
-                
-                const cx = (c + 1) * this.cellSize;
-                const cy = (r + 1) * this.cellSize;
-                
-                // 往右看
-                if (c < BOARD_SIZE - 1 && this.board[r][c+1] === this.board[r][c]) {
-                    this.ctx.fillRect(cx, cy - radius*0.8, this.cellSize, radius*1.6);
-                }
-                // 往下看
-                if (r < BOARD_SIZE - 1 && this.board[r+1][c] === this.board[r][c]) {
-                    this.ctx.fillRect(cx - radius*0.8, cy, radius*1.6, this.cellSize);
-                }
-            }
-        }
-        
-        // 第二層：畫圓形棋子本體
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
                 if (this.board[r][c] === EMPTY) continue;

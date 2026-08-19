@@ -59,7 +59,8 @@ class StickyGoAI {
                 // 困難模式下，防守也很重要（如果敵人快贏了就一定要擋）
                 score = myScore + oppScore * 1.2; 
                 // 稍微鼓勵下在中間
-                score += (7 - Math.abs(move.row - 7)) + (7 - Math.abs(move.col - 7));
+                const center = Math.floor(BOARD_SIZE / 2);
+                score += (center - Math.abs(move.row - center)) + (center - Math.abs(move.col - center));
             } else {
                 // 中等模式比較偏向自己進攻
                 score = myScore + oppScore * 0.8;
