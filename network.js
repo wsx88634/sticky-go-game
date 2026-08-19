@@ -46,8 +46,13 @@ class NetworkGame {
         this.peer.on('open', (id) => {
             this.myIdDisplay.textContent = id;
             
-            // 產生含有 peerId 的分享網址
-            const joinUrl = window.location.href.split('?')[0] + '?join=' + id;
+            // 決定分享的 URL。如果在本地 (file:// 或 localhost)，手機無法掃描連線，改用預期的 GitHub Pages 網址。
+            let baseUrl = window.location.href.split('?')[0];
+            if (baseUrl.startsWith('file://') || baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost')) {
+                baseUrl = 'https://wsx88634.github.io/sticky-go-game/'; // 替換為您的 GitHub Pages 網址
+            }
+            
+            const joinUrl = baseUrl + (baseUrl.endsWith('/') ? '' : '/') + '?join=' + id;
             
             // 繪製 QR Code
             new QRious({
