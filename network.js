@@ -9,11 +9,14 @@ class NetworkGame {
         this.friendIdInput = document.getElementById('friend-id-input');
         this.joinBtn = document.getElementById('join-btn');
         this.copyBtn = document.getElementById('copy-btn');
+        this.localBtn = document.getElementById('local-btn');
         this.statusDisplay = document.getElementById('connection-status');
         this.turnIndicator = document.getElementById('turn-indicator');
         
         this.networkPanel = document.getElementById('network-panel');
         this.gamePanel = document.getElementById('game-panel');
+        
+        this.isLocalMode = false;
         
         this.passBtn = document.getElementById('pass-btn');
         this.resignBtn = document.getElementById('resign-btn');
@@ -81,6 +84,23 @@ class NetworkGame {
         document.getElementById('modal-close-btn').addEventListener('click', () => {
             document.getElementById('modal').classList.add('hidden');
         });
+
+        this.localBtn.addEventListener('click', () => {
+            this.isLocalMode = true;
+            this.statusDisplay.textContent = '🏠 單機雙人模式';
+            this.statusDisplay.style.color = '#3498db';
+            
+            // 切換畫面
+            this.networkPanel.classList.add('hidden');
+            this.gamePanel.classList.remove('hidden');
+            
+            // 由於是單機，把文字提示改一下
+            document.querySelector('#player-black span').textContent = '黑方';
+            document.querySelector('#player-white span').textContent = '白方';
+            
+            window.game.resizeCanvas();
+            this.updateTurnUI();
+        });
     }
     
     setupConnectionEvents() {
@@ -142,11 +162,17 @@ class NetworkGame {
     }
     
     isMyTurn() {
+        if (this.isLocalMode) return true;
         return window.game.currentPlayer === this.myColor;
     }
     
     updateTurnUI() {
-        if (this.isMyTurn()) {
+        if (this.isLocalMode) {
+            const colorName = window.game.currentPlayer === BLACK ? '黑子' : '白子';
+            this.turnIndicator.textContent = `🎲 輪到 ${colorName}`;
+            this.turnIndicator.style.color = '#3498db';
+            this.turnIndicator.style.fontWeight = 'bold';
+        } else if (this.isMyTurn()) {
             this.turnIndicator.textContent = '🟢 換你落子';
             this.turnIndicator.style.color = '#2ecc71';
             this.turnIndicator.style.fontWeight = 'bold';
