@@ -65,27 +65,26 @@ class StickyGo {
         this.board[row][col] = color;
         this.lastMove = { row, col };
 
-        // 觸發網路傳送
+        const isWin = this.checkWin(row, col, color);
+
+        if (isWin) {
+            this.gameOver = true;
+        } else {
+            // 更新狀態
+            this.currentPlayer = color === BLACK ? WHITE : BLACK;
+        }
+
+        this.draw();
+        this.updateUI();
+
+        // 觸發網路傳送與 AI (此時 currentPlayer 已經正確切換)
         if (isLocalPlayer && this.onMovePlaced) {
             this.onMovePlaced(row, col);
         }
 
-        // 檢查勝利
-        if (this.checkWin(row, col, color)) {
-            this.gameOver = true;
-            this.draw();
-            this.updateUI();
-            if (this.onGameOver) {
-                this.onGameOver(color);
-            }
-            return true;
+        if (isWin && this.onGameOver) {
+            this.onGameOver(color);
         }
-
-        // 更新狀態
-        this.currentPlayer = color === BLACK ? WHITE : BLACK;
-        
-        this.draw();
-        this.updateUI();
 
         return true;
     }
