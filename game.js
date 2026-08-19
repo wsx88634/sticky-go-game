@@ -1,4 +1,4 @@
-const BOARD_SIZE = 9;
+const BOARD_SIZE = 15;
 const EMPTY = 0;
 const BLACK = 1;
 const WHITE = 2;
@@ -7,26 +7,25 @@ class StickyGo {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        this.board = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(EMPTY));
-        this.currentPlayer = BLACK;
-        
-        // 提子數
-        this.captures = { [BLACK]: 0, [WHITE]: 0 };
-        
-        // 劫爭座標 (ko)
-        this.koPoint = null; 
-        
-        // UI 狀態
-        this.lastMove = null;
-        
-        // 綁定事件
-        this.canvas.addEventListener('click', this.handleClick.bind(this));
-        
-        this.resizeCanvas();
-        window.addEventListener('resize', this.resizeCanvas.bind(this));
         
         // 回調函數 (供 network.js 綁定)
         this.onMovePlaced = null; 
+        this.onGameOver = null;
+
+        this.reset();
+        
+        // 綁定事件 (只綁一次)
+        this.canvas.addEventListener('click', this.handleClick.bind(this));
+        window.addEventListener('resize', this.resizeCanvas.bind(this));
+    }
+
+    reset() {
+        this.board = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(EMPTY));
+        this.currentPlayer = BLACK;
+        this.gameOver = false;
+        this.lastMove = null;
+        this.resizeCanvas();
+        this.updateUI();
     }
 
     resizeCanvas() {
@@ -40,7 +39,9 @@ class StickyGo {
 
     // 處理點擊
     handleClick(e) {
-        // 如果還沒輪到自己（會在 network.js 中覆寫這個檢查，但這邊先做基礎防呆）
+        if (this.gameOver) return;
+        
+        // 如果還沒輪到自己
         if (window.networkGame && !window.networkGame.isMyTurn()) {
             return;
         }
@@ -56,118 +57,69 @@ class StickyGo {
     }
 
     playMove(row, col, isLocalPlayer = false) {
+        if (this.gameOver) return false;
         if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return false;
         if (this.board[row][col] !== EMPTY) return false;
 
-        // 檢查劫爭
-        if (this.koPoint && this.koPoint.row === row && this.koPoint.col === col) {
-            console.log("打劫！");
-            return false;
-        }
-
         const color = this.currentPlayer;
         this.board[row][col] = color;
-
-        // 找出敵方相鄰群組，檢查是否提子
-        let capturedStones = 0;
-        let singleCapturedPoint = null;
-        const opponent = color === BLACK ? WHITE : BLACK;
-        const neighbors = this.getNeighbors(row, col);
-        
-        neighbors.forEach(n => {
-            if (this.board[n.row][n.col] === opponent) {
-                const group = this.getGroup(n.row, n.col);
-                if (this.getLiberties(group) === 0) {
-                    // 提子
-                    group.forEach(stone => {
-                        this.board[stone.row][stone.col] = EMPTY;
-                        capturedStones++;
-                        singleCapturedPoint = stone;
-                    });
-                }
-            }
-        });
-
-        // 檢查自殺
-        const myGroup = this.getGroup(row, col);
-        if (this.getLiberties(myGroup) === 0) {
-            // 恢復原狀
-            this.board[row][col] = EMPTY;
-            console.log("禁止自殺！");
-            return false;
-        }
-
-        // 更新劫爭狀態
-        if (capturedStones === 1 && myGroup.length === 1 && this.getLiberties(myGroup) === 1) {
-            this.koPoint = singleCapturedPoint;
-        } else {
-            this.koPoint = null;
-        }
-
-        // 更新狀態
-        this.captures[color] += capturedStones;
         this.lastMove = { row, col };
-        this.currentPlayer = opponent;
-        
-        this.draw();
-        this.updateUI();
 
         // 觸發網路傳送
         if (isLocalPlayer && this.onMovePlaced) {
             this.onMovePlaced(row, col);
         }
 
+        // 檢查勝利
+        if (this.checkWin(row, col, color)) {
+            this.gameOver = true;
+            this.draw();
+            this.updateUI();
+            if (this.onGameOver) {
+                this.onGameOver(color);
+            }
+            return true;
+        }
+
+        // 更新狀態
+        this.currentPlayer = color === BLACK ? WHITE : BLACK;
+        
+        this.draw();
+        this.updateUI();
+
         return true;
     }
 
-    // 取得相鄰座標
-    getNeighbors(row, col) {
-        const neighbors = [];
-        if (row > 0) neighbors.push({ row: row - 1, col });
-        if (row < BOARD_SIZE - 1) neighbors.push({ row: row + 1, col });
-        if (col > 0) neighbors.push({ row, col: col - 1 });
-        if (col < BOARD_SIZE - 1) neighbors.push({ row, col: col + 1 });
-        return neighbors;
-    }
+    checkWin(row, col, color) {
+        const directions = [
+            [1, 0], [0, 1], [1, 1], [1, -1] // 水平, 垂直, 主對角, 副對角
+        ];
 
-    // 取得相連的同色棋子群組 (DFS)
-    getGroup(row, col) {
-        const color = this.board[row][col];
-        if (color === EMPTY) return [];
-
-        const group = [];
-        const visited = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(false));
-        const stack = [{ row, col }];
-        visited[row][col] = true;
-
-        while (stack.length > 0) {
-            const current = stack.pop();
-            group.push(current);
-
-            this.getNeighbors(current.row, current.col).forEach(n => {
-                if (!visited[n.row][n.col] && this.board[n.row][n.col] === color) {
-                    visited[n.row][n.col] = true;
-                    stack.push(n);
+        for (let dir of directions) {
+            let count = 1;
+            // 往一個方向找
+            for (let i = 1; i < 5; i++) {
+                const r = row + dir[0] * i;
+                const c = col + dir[1] * i;
+                if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && this.board[r][c] === color) {
+                    count++;
+                } else {
+                    break;
                 }
-            });
+            }
+            // 往反方向找
+            for (let i = 1; i < 5; i++) {
+                const r = row - dir[0] * i;
+                const c = col - dir[1] * i;
+                if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && this.board[r][c] === color) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            if (count >= 5) return true;
         }
-        return group;
-    }
-
-    // 計算群組的氣
-    getLiberties(group) {
-        let liberties = 0;
-        const visited = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(false));
-
-        group.forEach(stone => {
-            this.getNeighbors(stone.row, stone.col).forEach(n => {
-                if (this.board[n.row][n.col] === EMPTY && !visited[n.row][n.col]) {
-                    visited[n.row][n.col] = true;
-                    liberties++;
-                }
-            });
-        });
-        return liberties;
+        return false;
     }
 
     // 繪製畫面
@@ -194,8 +146,10 @@ class StickyGo {
         }
         this.ctx.stroke();
 
-        // 畫星位 (9x9 通常有 5 個或 4 個)
-        const stars = [[2,2], [6,6], [2,6], [6,2], [4,4]];
+        // 畫星位 (15x15 的標準星位與天元)
+        const stars = [
+            [3, 3], [11, 3], [3, 11], [11, 11], [7, 7]
+        ];
         this.ctx.fillStyle = "#5d4a3f";
         stars.forEach(star => {
             this.ctx.beginPath();
@@ -264,9 +218,6 @@ class StickyGo {
     }
 
     updateUI() {
-        document.getElementById('black-score').textContent = this.captures[BLACK];
-        document.getElementById('white-score').textContent = this.captures[WHITE];
-        
         const pb = document.getElementById('player-black');
         const pw = document.getElementById('player-white');
         
@@ -280,15 +231,6 @@ class StickyGo {
         
         if (window.networkGame) {
             window.networkGame.updateTurnUI();
-        }
-    }
-
-    pass() {
-        this.currentPlayer = this.currentPlayer === BLACK ? WHITE : BLACK;
-        this.koPoint = null;
-        this.updateUI();
-        if (this.onMovePlaced) {
-            this.onMovePlaced(-1, -1); // 傳送 pass 訊號
         }
     }
 }

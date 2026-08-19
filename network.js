@@ -22,14 +22,16 @@ class NetworkGame {
         this.isAIMode = false;
         this.aiEngine = null;
         
-        this.passBtn = document.getElementById('pass-btn');
         this.resignBtn = document.getElementById('resign-btn');
+        this.menuBtn = document.getElementById('menu-btn');
+        this.modalMenuBtn = document.getElementById('modal-menu-btn');
         
         this.setupPeerEvents();
         this.setupUIEvents();
         
         // 綁定到 window.game
         window.game.onMovePlaced = this.sendMove.bind(this);
+        window.game.onGameOver = this.handleGameOver.bind(this);
         
         // 檢查網址是否有 join 參數
         const urlParams = new URLSearchParams(window.location.search);
@@ -43,7 +45,6 @@ class NetworkGame {
     setupPeerEvents() {
         this.peer.on('open', (id) => {
             this.myIdDisplay.textContent = id;
-            console.log('My peer ID is: ' + id);
             
             // 產生含有 peerId 的分享網址
             const joinUrl = window.location.href.split('?')[0] + '?join=' + id;
@@ -72,7 +73,7 @@ class NetworkGame {
         this.joinBtn.addEventListener('click', () => {
             const friendId = this.friendIdInput.value.trim();
             if (!friendId) {
-                this.showModal('錯誤', '請輸入朋友的邀請碼！');
+                this.showModal('錯誤', '請輸入邀請碼！');
                 return;
             }
             this.joinBtn.disabled = true;
@@ -90,22 +91,43 @@ class NetworkGame {
                 .catch(err => console.error('複製失敗', err));
         });
         
-        this.passBtn.addEventListener('click', () => {
-            if (this.isMyTurn()) {
-                window.game.pass();
-            }
-        });
-        
         this.resignBtn.addEventListener('click', () => {
             if (confirm('確定要認輸嗎？')) {
                 this.sendResign();
-                this.showModal('遊戲結束', '您已認輸！');
+                this.handleGameOver(this.myColor === BLACK ? WHITE : BLACK, true);
             }
         });
         
         document.getElementById('modal-close-btn').addEventListener('click', () => {
             document.getElementById('modal').classList.add('hidden');
         });
+
+        const goBackToMenu = () => {
+            document.getElementById('modal').classList.add('hidden');
+            this.networkPanel.classList.remove('hidden');
+            this.gamePanel.classList.add('hidden');
+            this.menuBtn.style.display = 'none';
+            this.resignBtn.style.display = 'inline-block';
+            
+            // 清理網址與狀態
+            window.history.pushState({}, document.title, window.location.pathname);
+            if (this.conn) {
+                this.conn.close();
+                this.conn = null;
+            }
+            this.joinBtn.disabled = false;
+            this.joinBtn.textContent = '加入遊戲';
+            this.isLocalMode = false;
+            this.isAIMode = false;
+            this.aiEngine = null;
+            this.statusDisplay.textContent = '🔴 尚未連線';
+            this.statusDisplay.style.color = 'inherit';
+            this.turnIndicator.textContent = '等待開始...';
+            window.game.reset();
+        };
+
+        this.menuBtn.addEventListener('click', goBackToMenu);
+        this.modalMenuBtn.addEventListener('click', goBackToMenu);
 
         this.localBtn.addEventListener('click', () => {
             this.isLocalMode = true;
@@ -118,8 +140,7 @@ class NetworkGame {
             document.querySelector('#player-black span').textContent = '黑方';
             document.querySelector('#player-white span').textContent = '白方';
             
-            window.game.resizeCanvas();
-            this.updateTurnUI();
+            window.game.reset();
         });
 
         this.aiBtn.addEventListener('click', () => {
@@ -143,8 +164,7 @@ class NetworkGame {
                 document.querySelector('#player-black span').textContent = '黑方 (你)';
                 document.querySelector('#player-white span').textContent = '白方 (電腦)';
                 
-                window.game.resizeCanvas();
-                this.updateTurnUI();
+                window.game.reset();
             });
         });
     }
@@ -157,8 +177,7 @@ class NetworkGame {
             // 切換畫面
             this.networkPanel.classList.add('hidden');
             this.gamePanel.classList.remove('hidden');
-            window.game.resizeCanvas();
-            this.updateTurnUI();
+            window.game.reset();
         });
         
         this.conn.on('data', (data) => {
@@ -166,9 +185,11 @@ class NetworkGame {
         });
         
         this.conn.on('close', () => {
-            this.statusDisplay.textContent = '🔴 連線已斷開';
-            this.statusDisplay.style.color = '#e74c3c';
-            this.showModal('斷線', '對方已離開遊戲。');
+            if (!window.game.gameOver) {
+                this.statusDisplay.textContent = '🔴 連線已斷開';
+                this.statusDisplay.style.color = '#e74c3c';
+                this.showModal('斷線', '對方已離開遊戲。');
+            }
         });
         
         this.conn.on('error', (err) => {
@@ -181,17 +202,9 @@ class NetworkGame {
     
     handleData(data) {
         if (data.type === 'move') {
-            if (data.row === -1 && data.col === -1) {
-                // 對手 pass
-                window.game.currentPlayer = window.game.currentPlayer === BLACK ? WHITE : BLACK;
-                window.game.koPoint = null;
-                window.game.updateUI();
-            } else {
-                // 對手落子
-                window.game.playMove(data.row, data.col, false);
-            }
+            window.game.playMove(data.row, data.col, false);
         } else if (data.type === 'resign') {
-            this.showModal('遊戲結束', '對方已認輸，你贏了！🎉');
+            this.handleGameOver(this.myColor, true);
         }
     }
     
@@ -200,7 +213,7 @@ class NetworkGame {
             this.conn.send({ type: 'move', row, col });
         }
         
-        if (this.isAIMode && window.game.currentPlayer === WHITE) {
+        if (this.isAIMode && window.game.currentPlayer === WHITE && !window.game.gameOver) {
             this.aiEngine.makeMove(window.game);
         }
     }
@@ -217,6 +230,12 @@ class NetworkGame {
     }
     
     updateTurnUI() {
+        if (window.game.gameOver) {
+            this.turnIndicator.textContent = '🏁 遊戲結束';
+            this.turnIndicator.style.color = '#333';
+            return;
+        }
+
         if (this.isLocalMode) {
             const colorName = window.game.currentPlayer === BLACK ? '黑子' : '白子';
             this.turnIndicator.textContent = `🎲 輪到 ${colorName}`;
@@ -243,6 +262,28 @@ class NetworkGame {
         }
     }
     
+    handleGameOver(winnerColor, byResign = false) {
+        window.game.gameOver = true;
+        const colorName = winnerColor === BLACK ? '黑子' : '白子';
+        let msg = byResign ? `${colorName}獲勝 (對方認輸)` : `恭喜 ${colorName} 獲勝！ 🎉`;
+        
+        // 觸發彩帶
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+        
+        this.showModal('遊戲結束', msg);
+        
+        // 顯示回主選單按鈕，隱藏認輸按鈕
+        this.resignBtn.style.display = 'none';
+        this.menuBtn.style.display = 'inline-block';
+        this.updateTurnUI();
+    }
+
     showModal(title, message) {
         document.getElementById('modal-title').textContent = title;
         document.getElementById('modal-message').textContent = message;

@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>黏黏圍棋</title>
+    <title>黏黏五子棋</title>
     <link rel="stylesheet" href="style.css">
     <!-- 引入 PeerJS 用於 P2P 連線 -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <!-- 引入 QRious 產生 QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- 引入 Canvas Confetti 產生慶祝彩帶 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
     <div id="app">
         <!-- 標題列 -->
         <header>
-            <h1>黏黏圍棋 🍡</h1>
+            <h1>黏黏五子棋 🍡</h1>
             <div id="status-bar">
                 <span id="connection-status">🔴 尚未連線</span>
                 <span id="turn-indicator">等待開始...</span>
@@ -60,12 +62,10 @@
                 <div id="player-black" class="player-box">
                     <div class="stone black"></div>
                     <span>黑方 (建房者)</span>
-                    <div class="score">提子: <span id="black-score">0</span></div>
                 </div>
                 <div id="player-white" class="player-box">
                     <div class="stone white"></div>
                     <span>白方 (加入者)</span>
-                    <div class="score">提子: <span id="white-score">0</span></div>
                 </div>
             </div>
 
@@ -74,8 +74,8 @@
             </div>
             
             <div class="controls">
-                <button id="pass-btn">Pass (停一手)</button>
                 <button id="resign-btn" class="danger">認輸</button>
+                <button id="menu-btn" style="background-color: #7f8c8d; display: none;">回主選單</button>
             </div>
         </div>
         
@@ -85,6 +85,7 @@
                 <h2 id="modal-title">提示</h2>
                 <p id="modal-message"></p>
                 <button id="modal-close-btn">確定</button>
+                <button id="modal-menu-btn" style="margin-top:10px; background-color: #95a5a6;">回主選單</button>
             </div>
         </div>
     </div>
