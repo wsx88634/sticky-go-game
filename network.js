@@ -76,6 +76,18 @@ class NetworkGame {
             this.myColor = BLACK; // 房主當黑棋(五子棋) 或紅棋(象棋, 都是 1)
             this.setupConnectionEvents();
         });
+        
+        // 處理找不到對手等 Peer 錯誤
+        this.peer.on('error', (err) => {
+            console.error('Peer error:', err);
+            this.joinBtn.disabled = false;
+            this.joinBtn.textContent = '加入連線';
+            if (err.type === 'peer-unavailable') {
+                this.showModal('連線失敗', '找不到對方！請確認朋友的網頁還開著，且邀請碼正確。');
+            } else {
+                this.showModal('連線錯誤', '發生錯誤：' + err.type);
+            }
+        });
     }
     
     setupUIEvents() {
@@ -135,6 +147,16 @@ class NetworkGame {
             this.conn = this.peer.connect(friendId);
             this.myColor = WHITE; // 加入者當白棋
             this.setupConnectionEvents();
+            
+            // 加入 10 秒超時機制
+            setTimeout(() => {
+                if (this.conn && !this.conn.open) {
+                    this.conn.close();
+                    this.joinBtn.disabled = false;
+                    this.joinBtn.textContent = '加入連線';
+                    this.showModal('超時', '連線逾時，請確認雙方的網路狀態，或對方是否已關閉網頁。');
+                }
+            }, 10000);
         });
         
         this.copyBtn.addEventListener('click', () => {
