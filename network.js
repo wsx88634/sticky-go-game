@@ -73,7 +73,7 @@ class NetworkGame {
                 return;
             }
             this.conn = connection;
-            this.myColor = BLACK; // 房主當黑棋(五子棋) 或紅棋(象棋, 都是 1)
+            this.myColor = 1; // 房主當黑棋(五子棋) 或紅棋(象棋, 都是 1)
             this.setupConnectionEvents();
         });
         
@@ -145,7 +145,7 @@ class NetworkGame {
             
             // 主動發起連線
             this.conn = this.peer.connect(friendId);
-            this.myColor = WHITE; // 加入者當白棋
+            this.myColor = 2; // 加入者當白棋
             this.setupConnectionEvents();
             
             // 加入 10 秒超時機制
@@ -168,7 +168,7 @@ class NetworkGame {
         this.resignBtn.addEventListener('click', () => {
             if (confirm('確定要認輸嗎？')) {
                 this.sendResign();
-                this.handleGameOver(this.myColor === BLACK ? WHITE : BLACK, true);
+                this.handleGameOver(this.myColor === 1 ? 2 : 1, true);
             }
         });
         
@@ -229,7 +229,7 @@ class NetworkGame {
                 const diff = e.target.dataset.level;
                 this.isAIMode = true;
                 this.aiEngine = new StickyGoAI(diff);
-                this.myColor = BLACK; // 玩家為黑
+                this.myColor = 1; // 玩家為黑
                 
                 let diffText = diff === 'easy' ? '簡單' : diff === 'medium' ? '中等' : '困難';
                 this.statusDisplay.textContent = `🤖 AI 對戰 (${diffText})`;
@@ -330,7 +330,7 @@ class NetworkGame {
             this.conn.send({ type: 'move', gameType: window.selectedGame, r1, c1, r2, c2 });
         }
         
-        if (this.isAIMode && window.activeGame.currentPlayer === WHITE && !window.activeGame.gameOver) {
+        if (this.isAIMode && window.activeGame.currentPlayer === 2 && !window.activeGame.gameOver) {
             this.aiEngine.makeMove(window.activeGame);
         }
     }
@@ -356,7 +356,7 @@ class NetworkGame {
         if (this.isLocalMode) {
             const isGomoku = window.selectedGame === 'gomoku';
             const colorName = isGomoku 
-                ? (window.activeGame.currentPlayer === BLACK ? '黑子' : '白子')
+                ? (window.activeGame.currentPlayer === 1 ? '黑子' : '白子')
                 : (window.activeGame.currentPlayer === 1 ? '紅方' : '黑方'); // XQ_RED=1
             this.turnIndicator.textContent = `🎲 輪到 ${colorName}`;
             this.turnIndicator.style.color = '#3498db';
