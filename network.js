@@ -156,8 +156,9 @@ class NetworkGame {
 
         const goBackToMenu = () => {
             document.getElementById('modal').classList.add('hidden');
-            this.networkPanel.classList.remove('hidden');
+            this.networkPanel.classList.add('hidden');
             this.gamePanel.classList.add('hidden');
+            this.hubPanel.classList.remove('hidden');
             this.menuBtn.style.display = 'none';
             this.backToHubBtn.style.display = 'none';
             this.resignBtn.style.display = 'inline-block';
@@ -176,14 +177,11 @@ class NetworkGame {
             this.statusDisplay.style.color = 'inherit';
             this.turnIndicator.textContent = '等待開始...';
             if (window.activeGame) window.activeGame.reset();
-            
-            // 如果要回到最一開始的大廳
-            // this.networkPanel.classList.add('hidden');
-            // this.hubPanel.classList.remove('hidden');
         };
 
         this.menuBtn.addEventListener('click', goBackToMenu);
         this.modalMenuBtn.addEventListener('click', goBackToMenu);
+        this.backToHubBtn.addEventListener('click', goBackToMenu);
 
         this.localBtn.addEventListener('click', () => {
             this.isLocalMode = true;
@@ -232,9 +230,16 @@ class NetworkGame {
             this.statusDisplay.style.color = '#4CAF50';
             
             // 切換畫面
+            this.hubPanel.classList.add('hidden');
             this.networkPanel.classList.add('hidden');
             this.gamePanel.classList.remove('hidden');
-            window.game.reset();
+            
+            // 房主主動發送當前遊戲類型給加入者
+            if (this.myColor === BLACK) {
+                this.conn.send({ type: 'sync_game', gameType: window.selectedGame });
+            }
+            
+            if (window.activeGame) window.activeGame.reset();
         });
         
         this.conn.on('data', (data) => {
@@ -242,7 +247,7 @@ class NetworkGame {
         });
         
         this.conn.on('close', () => {
-            if (!window.game.gameOver) {
+            if (window.activeGame && !window.activeGame.gameOver) {
                 this.statusDisplay.textContent = '🔴 連線已斷開';
                 this.statusDisplay.style.color = '#e74c3c';
                 this.showModal('斷線', '對方已離開遊戲。');
@@ -252,13 +257,42 @@ class NetworkGame {
         this.conn.on('error', (err) => {
             console.error('連線錯誤', err);
             this.joinBtn.disabled = false;
-            this.joinBtn.textContent = '加入遊戲';
+            this.joinBtn.textContent = '加入連線';
             this.showModal('錯誤', '連線失敗，請檢查邀請碼。');
         });
     }
     
     handleData(data) {
-        if (data.type === 'move') {
+        if (data.type === 'sync_game') {
+            if (data.gameType === 'xiangqi') {
+                window.selectedGame = 'xiangqi';
+                window.activeGame = window.xiangqiGame;
+                document.getElementById('go-board').classList.add('hidden');
+                document.getElementById('xiangqi-board').classList.remove('hidden');
+                
+                document.getElementById('player-black-name').textContent = '紅方 (建房者)';
+                document.getElementById('player-white-name').textContent = '黑方 (加入者)';
+                document.querySelector('#player-black .stone').style.backgroundColor = '#e74c3c';
+                document.querySelector('#player-white .stone').style.backgroundColor = '#2c3e50';
+                document.querySelector('#player-white .stone').style.border = 'none';
+            } else {
+                window.selectedGame = 'gomoku';
+                window.activeGame = window.game;
+                document.getElementById('go-board').classList.remove('hidden');
+                document.getElementById('xiangqi-board').classList.add('hidden');
+                
+                document.getElementById('player-black-name').textContent = '黑方 (建房者)';
+                document.getElementById('player-white-name').textContent = '白方 (加入者)';
+                document.querySelector('#player-black .stone').style.backgroundColor = '#333';
+                document.querySelector('#player-white .stone').style.backgroundColor = '#fff';
+                document.querySelector('#player-white .stone').style.border = '2px solid #ccc';
+            }
+            if (window.activeGame) {
+                window.activeGame.reset();
+                setTimeout(() => window.activeGame.resizeCanvas(), 50);
+            }
+            this.updateTurnUI();
+        } else if (data.type === 'move') {
             if (data.gameType === 'xiangqi') {
                 window.xiangqiGame.playMove(data.r1, data.c1, data.r2, data.c2, false);
             } else {
@@ -332,7 +366,6 @@ class NetworkGame {
             window.activeGame.forceGameOver(winnerColor, reason);
         }
         
-        // 觸發彩帶
         if (typeof confetti === 'function') {
             confetti({
                 particleCount: 100,
@@ -341,9 +374,8 @@ class NetworkGame {
             });
         }
         
-        // 顯示回大廳按鈕，隱藏認輸按鈕
         this.resignBtn.style.display = 'none';
-        this.menuBtn.style.display = 'none'; // 五子棋的回選單
+        this.menuBtn.style.display = 'none'; 
         this.backToHubBtn.style.display = 'inline-block';
         this.updateTurnUI();
     }
