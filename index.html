@@ -16,16 +16,25 @@
     <div id="app">
         <!-- 標題列 -->
         <header>
-            <h1>五子棋 ⚪⚫</h1>
+            <h1 id="main-title">遊戲大廳 🎮</h1>
             <div id="status-bar">
                 <span id="connection-status">🔴 尚未連線</span>
                 <span id="turn-indicator">等待開始...</span>
             </div>
         </header>
 
+        <!-- 遊戲大廳選擇 -->
+        <div id="hub-panel" class="panel">
+            <h2>請選擇要玩的遊戲</h2>
+            <div class="game-select-container">
+                <button id="btn-gomoku" class="game-select-btn">五子棋 ⚪⚫</button>
+                <button id="btn-xiangqi" class="game-select-btn" style="background-color: #c0392b;">象棋 ♟️</button>
+            </div>
+        </div>
+
         <!-- 連線面板 -->
-        <div id="network-panel" class="panel">
-            <h2>選擇遊戲模式</h2>
+        <div id="network-panel" class="panel hidden">
+            <h2>選擇對戰模式</h2>
             <div class="network-controls">
                 
                 <!-- 單人/單機區 -->
@@ -50,9 +59,9 @@
 
                 <div class="join-section">
                     <input type="text" id="friend-id-input" placeholder="貼上邀請碼">
-                    <button id="join-btn">加入遊戲</button>
+                    <button id="join-btn">加入連線</button>
                 </div>
-
+                <button id="back-to-hub-btn" style="background-color: #7f8c8d; margin-top: 20px;">回遊戲大廳</button>
             </div>
         </div>
 
@@ -61,16 +70,19 @@
             <div class="player-info">
                 <div id="player-black" class="player-box">
                     <div class="stone black"></div>
-                    <span>黑方 (建房者)</span>
+                    <span id="player-black-name">黑方 (建房者)</span>
                 </div>
                 <div id="player-white" class="player-box">
                     <div class="stone white"></div>
-                    <span>白方 (加入者)</span>
+                    <span id="player-white-name">白方 (加入者)</span>
                 </div>
             </div>
 
             <div class="board-container">
-                <canvas id="go-board" width="400" height="400"></canvas>
+                <!-- 五子棋畫布 -->
+                <canvas id="go-board" width="400" height="400" class="hidden"></canvas>
+                <!-- 象棋畫布 -->
+                <canvas id="xiangqi-board" width="400" height="450" class="hidden"></canvas>
             </div>
             
             <div class="controls">
@@ -91,6 +103,7 @@
     </div>
 
     <script src="game.js"></script>
+    <script src="xiangqi.js"></script>
     <script src="ai.js"></script>
     <script src="network.js"></script>
 </body>
